@@ -68,12 +68,11 @@ class MainViewModel : ViewModel() {
     private val _layer10State = MutableStateFlow<UiState<Layer10Data>>(UiState.Idle)
     val layer10State: StateFlow<UiState<Layer10Data>> = _layer10State.asStateFlow()
 
-    // ── Selected values for roadmap ───────────────────────────────────────────
     var selectedMarriageType = MutableStateFlow("hindu")
     var selectedRole         = MutableStateFlow("husband")
 
     // ─────────────────────────────────────────────────────────────────────────
-    // Chat (Legal AI)
+    // Chat (Legal AI) — FIXED: handles multiple response shapes from backend
     // ─────────────────────────────────────────────────────────────────────────
     fun sendLegalChat(question: String, religion: String) {
         val userMsg = ChatMessage(question, isUser = true)
@@ -84,22 +83,51 @@ class MainViewModel : ViewModel() {
             try {
                 val contextual = buildContext(question, _chatHistory.value)
                 val resp = api.ask(AskRequest(contextual, mapReligion(religion)))
-                if (resp.isSuccessful && resp.body()?.success == true) {
-                    val d = resp.body()!!.data!!
-                    val text = "${d.answer}\n\n${d.explanation}"
-                    val suggestions = generateSuggestions(text, religion, question)
-                    val botMsg = ChatMessage(text, isUser = false, suggestions = suggestions)
-                    _chatMessages.value = _chatMessages.value + botMsg
-                    _chatHistory.value  = (_chatHistory.value + userMsg + botMsg).takeLast(6)
-                } else {
-                    _chatMessages.value = _chatMessages.value + ChatMessage("❌ Could not find relevant information.", false)
+
+                val text: String = when {
+                    // Shape 1: { success: true, data: { answer: "...", explanation: "..." } }
+                    resp.isSuccessful && resp.body()?.success == true && resp.body()?.data != null -> {
+                        val d = resp.body()!!.data!!
+                        buildFullAnswer(d.answer, d.explanation)
+                    }
+                    // Shape 2: success=false with a message string
+                    resp.isSuccessful && resp.body()?.message != null -> {
+                        resp.body()!!.message!!
+                    }
+                    // Shape 3: HTTP error
+                    !resp.isSuccessful -> {
+                        "❌ Server returned error ${resp.code()}. Check backend logs."
+                    }
+                    else -> "❌ Could not get a response. Please try again."
                 }
+
+                val suggestions = generateSuggestions(text, religion, question)
+                val botMsg = ChatMessage(text, isUser = false, suggestions = suggestions)
+                _chatMessages.value = _chatMessages.value + botMsg
+                _chatHistory.value  = (_chatHistory.value + userMsg + botMsg).takeLast(6)
+
             } catch (e: Exception) {
-                _chatMessages.value = _chatMessages.value + ChatMessage("❌ Server error. Is the backend running on port 8000?", false)
+                val errMsg = when {
+                    e.message?.contains("Unable to resolve host") == true ->
+                        "❌ Cannot reach backend.\n\nCheck:\n• Backend running on port 8000?\n• Phone & PC on same Wi-Fi?\n• BASE_URL set to your PC IP (192.168.x.x)?"
+                    e.message?.contains("timeout") == true ->
+                        "❌ Request timed out. Backend may be slow."
+                    else ->
+                        "❌ Error: ${e.message}"
+                }
+                _chatMessages.value = _chatMessages.value + ChatMessage(errMsg, false)
             } finally {
                 _chatLoading.value = false
             }
         }
+    }
+
+    // Combine answer + explanation cleanly, skip empty parts
+    private fun buildFullAnswer(answer: String?, explanation: String?): String {
+        val parts = mutableListOf<String>()
+        answer?.trim()?.takeIf { it.isNotEmpty() }?.let { parts.add(it) }
+        explanation?.trim()?.takeIf { it.isNotEmpty() && it != answer?.trim() }?.let { parts.add(it) }
+        return parts.joinToString("\n\n").ifEmpty { "No answer found for this question." }
     }
 
     fun clearLegalChat() {
@@ -108,7 +136,7 @@ class MainViewModel : ViewModel() {
     }
 
     // ─────────────────────────────────────────────────────────────────────────
-    // Counselor Chat
+    // Counselor Chat — FIXED: handles multiple response shapes
     // ─────────────────────────────────────────────────────────────────────────
     fun sendCounselorChat(question: String) {
         val userMsg = ChatMessage(question, isUser = true)
@@ -118,27 +146,53 @@ class MainViewModel : ViewModel() {
         viewModelScope.launch {
             try {
                 val resp = api.counselorChat(CounselorRequest(question))
-                if (resp.isSuccessful && resp.body()?.success == true) {
-                    val d = resp.body()!!.data!!
-                    val text = buildString {
-                        append("🧭 Introduction\n${d.introduction}\n\n")
-                        append("💭 Understanding\n${d.understanding}\n\n")
-                        append("📌 Summary\n${d.summary}\n\n")
-                        append("🔑 Key Points\n${d.keyPoints.joinToString("\n• ", "• ")}\n\n")
-                        append("✅ Conclusion\n${d.conclusion}\n\n")
-                        append("❤️ Motivation\n${d.motivation}")
+
+                val text: String = when {
+                    resp.isSuccessful && resp.body()?.success == true && resp.body()?.data != null -> {
+                        val d = resp.body()!!.data!!
+                        buildCounselorText(d)
                     }
-                    _counselorMessages.value = _counselorMessages.value + ChatMessage(text, false)
-                } else {
-                    _counselorMessages.value = _counselorMessages.value + ChatMessage("❌ Failed to get response.", false)
+                    resp.isSuccessful && resp.body()?.message != null -> {
+                        resp.body()!!.message!!
+                    }
+                    else -> "❌ Could not get a response. Please try again."
                 }
+
+                _counselorMessages.value = _counselorMessages.value + ChatMessage(text, false)
+
             } catch (e: Exception) {
-                _counselorMessages.value = _counselorMessages.value + ChatMessage("❌ Server error.", false)
+                _counselorMessages.value = _counselorMessages.value + ChatMessage(
+                    "❌ Error: ${e.message}", false
+                )
             } finally {
                 _counselorLoading.value = false
             }
         }
     }
+
+    private fun buildCounselorText(d: CounselorData): String = buildString {
+        if (d.introduction.isNotBlank()) {
+            append(d.introduction.trim())
+            append("\n\n")
+        }
+        if (d.understanding.isNotBlank()) {
+            append(d.understanding.trim())
+            append("\n\n")
+        }
+        if (d.keyPoints.isNotEmpty()) {
+            append("Key Points:\n")
+            d.keyPoints.forEach { append("• $it\n") }
+            append("\n")
+        }
+        if (d.conclusion.isNotBlank()) {
+            append(d.conclusion.trim())
+            append("\n\n")
+        }
+        if (d.motivation.isNotBlank()) {
+            append("💪 ")
+            append(d.motivation.trim())
+        }
+    }.trim()
 
     // ─────────────────────────────────────────────────────────────────────────
     // Roadmap
@@ -170,7 +224,7 @@ class MainViewModel : ViewModel() {
                 if (resp.isSuccessful && resp.body()?.success == true) {
                     _layer0State.value = UiState.Success(resp.body()!!.data!!)
                 } else {
-                    _layer0State.value = UiState.Error(resp.body()?.message ?: "Error")
+                    _layer0State.value = UiState.Error(resp.body()?.message ?: "Error getting position")
                 }
             } catch (e: Exception) {
                 _layer0State.value = UiState.Error(e.message ?: "Unknown error")
@@ -229,7 +283,7 @@ class MainViewModel : ViewModel() {
                 if (resp.isSuccessful && resp.body()?.success == true) {
                     _layer4State.value = UiState.Success(resp.body()!!.data!!)
                 } else {
-                    _layer4State.value = UiState.Error(resp.body()?.message ?: "No matching route")
+                    _layer4State.value = UiState.Error(resp.body()?.message ?: "No matching route found")
                 }
             } catch (e: Exception) {
                 _layer4State.value = UiState.Error(e.message ?: "Unknown error")
@@ -337,7 +391,7 @@ class MainViewModel : ViewModel() {
     // ─────────────────────────────────────────────────────────────────────────
     private fun buildContext(question: String, history: List<ChatMessage>): String {
         if (history.isEmpty()) return question
-        val recent = history.takeLast(3).joinToString(" | ") { it.text.take(100) }
+        val recent = history.takeLast(4).joinToString(" | ") { it.text.take(120) }
         return "Context: $recent --- Question: $question"
     }
 

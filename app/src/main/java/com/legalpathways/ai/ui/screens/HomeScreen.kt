@@ -105,7 +105,8 @@ fun HomeScreen(onNavigate: (String) -> Unit) {
                         "Legal Pathways AI",
                         style     = MaterialTheme.typography.displayMedium,
                         color     = Color.White,
-                        textAlign = TextAlign.Center
+                        textAlign = TextAlign.Center,
+                        fontWeight = FontWeight.Bold
                     )
                     Spacer(Modifier.height(4.dp))
                     Text(
@@ -158,14 +159,18 @@ fun HomeScreen(onNavigate: (String) -> Unit) {
                             .fillMaxWidth()
                             .height(56.dp),
                         shape  = RoundedCornerShape(14.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = NavyMid)
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = NavyMid,
+                            contentColor = Color.White
+                        )
                     ) {
-                        Icon(Icons.Default.Map, null, modifier = Modifier.size(20.dp))
+                        Icon(Icons.Default.Map, null, modifier = Modifier.size(20.dp), tint = Color.White)
                         Spacer(Modifier.width(10.dp))
                         Text(
                             "View Divorce Roadmap + AI Chat",
                             style = MaterialTheme.typography.titleSmall,
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
                         )
                     }
 
@@ -181,12 +186,13 @@ fun HomeScreen(onNavigate: (String) -> Unit) {
                         colors = ButtonDefaults.outlinedButtonColors(contentColor = EmeraldAccent),
                         border = BorderStroke(1.5.dp, EmeraldAccent)
                     ) {
-                        Icon(Icons.Default.Favorite, null, modifier = Modifier.size(20.dp))
+                        Icon(Icons.Default.Favorite, null, modifier = Modifier.size(20.dp), tint = EmeraldAccent)
                         Spacer(Modifier.width(10.dp))
                         Text(
                             "Emotional Support Counselor",
                             style = MaterialTheme.typography.titleSmall,
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Bold,
+                            color = EmeraldAccent
                         )
                     }
 
@@ -207,7 +213,8 @@ fun HomeScreen(onNavigate: (String) -> Unit) {
                             Text(
                                 "AI-powered legal guidance. Not a substitute for professional legal advice.",
                                 style = MaterialTheme.typography.bodySmall,
-                                color = GoldDark
+                                color = GoldDark,
+                                fontWeight = FontWeight.Medium
                             )
                         }
                     }
@@ -256,7 +263,7 @@ fun LayerGridCard(card: LayerCard, onClick: () -> Unit) {
                 text      = card.label,
                 style     = MaterialTheme.typography.labelSmall,
                 fontWeight = FontWeight.SemiBold,
-                color     = NavyDeep,
+                color     = NavyDeep,  // ✅ EXPLICIT DARK COLOR FOR CONTRAST
                 textAlign = TextAlign.Center
             )
         }

@@ -88,7 +88,7 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
         // ✅ AAPKA PC KA IP ADDRESS — same Wi-Fi network pe hona chahiye phone aur PC dono
-        buildConfigField("String", "BASE_URL", "\"http://192.168.1.22:8000/\"")
+        buildConfigField("String", "BASE_URL", "\"http://223.223.223.56:8000/\"")
     }
 
     buildTypes {
