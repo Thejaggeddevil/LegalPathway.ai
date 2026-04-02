@@ -146,7 +146,7 @@ fun Layer0Screen(onBack: () -> Unit, vm: MainViewModel = viewModel()) {
                                     onSelect = {
                                         relStatus = it
                                         coroutineScope.launch {
-                                            delay(400) // 👈 tweak 300–600ms
+                                            delay(400)
                                             step++
                                         }
                                     }
@@ -269,29 +269,55 @@ fun Layer0Screen(onBack: () -> Unit, vm: MainViewModel = viewModel()) {
                                     }
                                 }
 
-                                // NEXT button
-                                IconButton(
-                                    onClick = { if (step < 6) step++ },
-                                    enabled = step < 6,
-                                    modifier = Modifier
-                                        .size(48.dp)
-                                        .background(
-                                            color = if (step < 6)
-                                                NavyMid
-                                            else
-                                                MaterialTheme.colorScheme.surfaceVariant,
-                                            shape = CircleShape
+                                // NEXT button (sirf step 1-5 pe)
+                                if (step < 6) {
+                                    IconButton(
+                                        onClick = { step++ },
+                                        modifier = Modifier
+                                            .size(48.dp)
+                                            .background(
+                                                color = NavyMid,
+                                                shape = CircleShape
+                                            )
+                                    ) {
+                                        Icon(
+                                            Icons.Default.ChevronRight,
+                                            contentDescription = "Next Step",
+                                            tint = Color.White,
+                                            modifier = Modifier.size(24.dp)
                                         )
-                                ) {
-                                    Icon(
-                                        Icons.Default.ChevronRight,
-                                        contentDescription = "Next Step",
-                                        tint = if (step < 6)
-                                            Color.White
-                                        else
-                                            MaterialTheme.colorScheme.onSurfaceVariant,
-                                        modifier = Modifier.size(24.dp)
-                                    )
+                                    }
+                                }
+
+                                // SUBMIT button (sirf step 6 pe)
+                                if (step == 6) {
+                                    Button(
+                                        onClick = {
+                                            vm.submitLayer0(
+                                                request = Layer0Request(
+                                                    relationshipStatus = relStatus,
+                                                    religion = religion,
+                                                    marriageAct = marriageAct,
+                                                    childrenFlag = children,        // hasChildren ❌ → childrenFlag ✅
+                                                    incomeRange = income,           // incomeBracket ❌ → incomeRange ✅
+                                                    riskIndicator = risk            // listOf(risk) ❌ → simply risk ✅
+                                                )
+                                            )
+                                        },
+                                        modifier = Modifier
+                                            .wrapContentWidth()
+                                            .height(48.dp),
+                                        colors = ButtonDefaults.buttonColors(containerColor = NavyMid),
+                                        shape = RoundedCornerShape(24.dp)
+                                    ) {
+                                        Icon(
+                                            Icons.Default.Send,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                        Spacer(Modifier.width(6.dp))
+                                        Text("Submit", fontWeight = FontWeight.Bold)
+                                    }
                                 }
                             }
                         }
@@ -346,7 +372,7 @@ fun MCQStepDisplayFixed(
                 )
             }
         }
-        Spacer(modifier=Modifier.height(20.dp))
+        Spacer(modifier = Modifier.height(20.dp))
 
         // ─── OPTIONS (BELOW QUESTION) ───
         Column(
@@ -450,7 +476,7 @@ fun MCQOptionButtonFixed(
                 Text(
                     label,
                     style = MaterialTheme.typography.bodyLarge,
-                    color =  NavyDeep,
+                    color = NavyDeep,
                     fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
                     modifier = Modifier.weight(1f)
                 )
@@ -505,7 +531,7 @@ fun ReviewStepModern(rel: String, religion: String, children: Boolean, income: S
         }
 
         Text(
-            "⬇️ Click Submit to get your legal position analysis",
+            " Click Submit to get your legal position analysis",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = androidx.compose.ui.text.style.TextAlign.Center,
@@ -581,8 +607,12 @@ fun Layer0Result(data: com.legalpathways.ai.model.Layer0Data, onReset: () -> Uni
             }
         }
 
-        OutlinedButton(onClick = onReset, modifier = Modifier.fillMaxWidth(),
-            border = BorderStroke(1.dp, NavyMid), colors = ButtonDefaults.outlinedButtonColors(contentColor = NavyMid)) {
+        OutlinedButton(
+            onClick = onReset,
+            modifier = Modifier.fillMaxWidth(),
+            border = BorderStroke(1.dp, NavyMid),
+            colors = ButtonDefaults.outlinedButtonColors(contentColor = NavyMid)
+        ) {
             Icon(Icons.Default.Refresh, null, modifier = Modifier.size(16.dp))
             Spacer(Modifier.width(6.dp))
             Text("New Assessment")
