@@ -75,10 +75,10 @@ fun Layer6Screen(onBack: () -> Unit, vm: GenericLayerViewModel = viewModel()) {
                     }
 
                     val sections = listOf(
-                        "jurisdiction_framework" to ("🏛️ Jurisdiction Framework" to NavyMid),
-                        "wife_side"              to ("👩 Wife Side – Grounds & Reliefs" to CrimsonAccent),
-                        "husband_side"           to ("👨 Husband Side – Defence & Strategy" to NavyLight),
-                        "mutual_consent_entry"   to ("🤝 Mutual Consent Entry" to EmeraldAccent)
+                        "jurisdiction_framework" to ("Jurisdiction Framework" to NavyMid),
+                        "wife_side"              to ("Wife Side – Grounds & Reliefs" to CrimsonAccent),
+                        "husband_side"           to ("Husband Side – Defence & Strategy" to NavyLight),
+                        "mutual_consent_entry"   to ("Mutual Consent Entry" to EmeraldAccent)
                     )
 
                     items(sections) { (key, meta) ->

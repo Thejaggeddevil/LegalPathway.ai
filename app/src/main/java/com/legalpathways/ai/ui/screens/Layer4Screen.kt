@@ -109,7 +109,7 @@ fun Layer4Screen(onBack: () -> Unit, vm: MainViewModel = viewModel()) {
                     ) {
                         Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text("⚖️ Legal Direction", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                                Text("Legal Direction", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                                 Spacer(Modifier.weight(1f))
                                 StatusBadge(d.urgencyLevel, uc)
                             }
@@ -133,21 +133,21 @@ fun Layer4Screen(onBack: () -> Unit, vm: MainViewModel = viewModel()) {
 
                     // Immediate actions
                     if (!d.immediateActions.isNullOrEmpty()) {
-                        ExpandableCard(title = "📌 Immediate Actions", leadingIcon = Icons.Default.FlashOn) {
+                        ExpandableCard(title = "Immediate Actions", leadingIcon = Icons.Default.FlashOn) {
                             BulletList(d.immediateActions, CrimsonAccent)
                         }
                     }
 
                     // Digital vault
                     if (!d.digitalVaultEvidence.isNullOrEmpty()) {
-                        ExpandableCard(title = "📂 Digital Vault – Evidence", leadingIcon = Icons.Default.FolderOpen) {
+                        ExpandableCard(title = "Digital Vault – Evidence", leadingIcon = Icons.Default.FolderOpen) {
                             BulletList(d.digitalVaultEvidence)
                         }
                     }
 
                     // Legal basis
                     if (!d.primaryLegalBasis.isNullOrEmpty()) {
-                        ExpandableCard(title = "⚖️ Primary Legal Basis", leadingIcon = Icons.Default.MenuBook) {
+                        ExpandableCard(title = "Primary Legal Basis", leadingIcon = Icons.Default.MenuBook) {
                             BulletList(d.primaryLegalBasis)
                         }
                     }
@@ -159,7 +159,7 @@ fun Layer4Screen(onBack: () -> Unit, vm: MainViewModel = viewModel()) {
                             colors   = CardDefaults.cardColors(containerColor = NavyMid.copy(alpha = 0.05f))
                         ) {
                             Column(modifier = Modifier.padding(14.dp)) {
-                                SectionHeader("📘 Why This Route", Icons.Default.Info)
+                                SectionHeader("Why This Route", Icons.Default.Info)
                                 Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurface)
                             }
                         }

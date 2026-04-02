@@ -190,13 +190,13 @@ fun ScenarioCard(item: ScenarioItem) {
                 // Maintenance vs Custody grid
                 Row(modifier = Modifier.fillMaxWidth()) {
                     Column(modifier = Modifier.weight(1f).padding(12.dp)) {
-                        Text("💰 Maintenance", style = MaterialTheme.typography.labelSmall, color = Color(0xFFE67E22), fontWeight = FontWeight.Bold)
+                        Text("Maintenance", style = MaterialTheme.typography.labelSmall, color = Color(0xFFE67E22), fontWeight = FontWeight.Bold)
                         Spacer(Modifier.height(4.dp))
                         Text(item.impactOnMaintenance, style = MaterialTheme.typography.bodySmall)
                     }
                     VerticalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f))
                     Column(modifier = Modifier.weight(1f).padding(12.dp)) {
-                        Text("👶 Custody", style = MaterialTheme.typography.labelSmall, color = NavyMid, fontWeight = FontWeight.Bold)
+                        Text("Custody", style = MaterialTheme.typography.labelSmall, color = NavyMid, fontWeight = FontWeight.Bold)
                         Spacer(Modifier.height(4.dp))
                         Text(item.impactOnCustody, style = MaterialTheme.typography.bodySmall)
                     }
@@ -206,7 +206,7 @@ fun ScenarioCard(item: ScenarioItem) {
                 if (!item.howToClaimMaintenance.isNullOrEmpty()) {
                     GoldDivider()
                     Column(modifier = Modifier.padding(12.dp)) {
-                        Text("📄 How to Claim Maintenance", style = MaterialTheme.typography.labelSmall, color = EmeraldAccent, fontWeight = FontWeight.Bold)
+                        Text("How to Claim Maintenance", style = MaterialTheme.typography.labelSmall, color = EmeraldAccent, fontWeight = FontWeight.Bold)
                         Spacer(Modifier.height(6.dp))
                         item.howToClaimMaintenance.forEachIndexed { i, step ->
                             Row(modifier = Modifier.padding(vertical = 2.dp)) {

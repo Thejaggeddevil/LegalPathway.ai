@@ -131,6 +131,7 @@ dependencies {
     implementation(libs.gson)
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.coil.compose)
+
     debugImplementation(libs.androidx.ui.tooling)
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)

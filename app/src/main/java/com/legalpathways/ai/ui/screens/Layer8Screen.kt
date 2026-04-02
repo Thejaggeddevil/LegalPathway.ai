@@ -110,13 +110,13 @@ fun Layer8Screen(onBack: () -> Unit, vm: MainViewModel = viewModel()) {
 
                                         // Delays
                                         if (stage.commonDelays.isNotEmpty()) {
-                                            SectionHeader("⚠️ Common Delays")
+                                            SectionHeader("Common Delays")
                                             BulletList(stage.commonDelays, CrimsonAccent)
                                         }
 
                                         // Required actions
                                         if (stage.requiredActions.isNotEmpty()) {
-                                            SectionHeader("✅ Required Actions")
+                                            SectionHeader("Required Actions")
                                             stage.requiredActions.forEach { action ->
                                                 val financial = isFinancial(action)
                                                 Surface(

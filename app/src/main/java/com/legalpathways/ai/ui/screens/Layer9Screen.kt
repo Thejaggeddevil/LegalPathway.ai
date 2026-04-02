@@ -111,7 +111,7 @@ fun Layer9Screen(onBack: () -> Unit, vm: MainViewModel = viewModel()) {
                                 colors   = CardDefaults.cardColors(containerColor = NavyMid.copy(alpha = 0.05f))
                             ) {
                                 Column(modifier = Modifier.padding(16.dp)) {
-                                    SectionHeader("🧠 Engine Strategy Logic", Icons.Default.Memory)
+                                    SectionHeader("Engine Strategy Logic", Icons.Default.Memory)
                                     Spacer(Modifier.height(6.dp))
                                     val rules = listOf(
                                         "Supreme Court precedents carry highest weight (3)",
@@ -168,7 +168,7 @@ fun CaseCard(c: CaseItem, side: String) {
                         Text("⭐".repeat(weight), style = MaterialTheme.typography.bodySmall)
                     }
                 }
-                StatusBadge(if (side == "husband") "👨 Husband" else "👩 Wife", sideColor)
+                StatusBadge(if (side == "husband") "Husband" else "Wife", sideColor)
             }
 
             if (expanded) {

@@ -94,17 +94,17 @@ fun Layer5Screen(onBack: () -> Unit, vm: MainViewModel = viewModel()) {
 
                     Card(modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = EmeraldAccent.copy(alpha = 0.06f)), border = BorderStroke(1.dp, EmeraldAccent.copy(alpha = 0.3f))) {
                         Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                            d.settlementId?.let { Text("📘 Settlement ID: $it", style = MaterialTheme.typography.labelMedium, color = EmeraldAccent, fontWeight = FontWeight.Bold) }
+                            d.settlementId?.let { Text("Settlement ID: $it", style = MaterialTheme.typography.labelMedium, color = EmeraldAccent, fontWeight = FontWeight.Bold) }
                             d.rationale?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
                         }
                     }
 
                     if (!d.legalBasis.isNullOrEmpty()) {
-                        ExpandableCard("⚖️ Legal Basis", Icons.Default.MenuBook) { BulletList(d.legalBasis) }
+                        ExpandableCard("Legal Basis", Icons.Default.MenuBook) { BulletList(d.legalBasis) }
                     }
 
                     if (!d.suggestedTerms.isNullOrEmpty()) {
-                        ExpandableCard("📑 Suggested Terms", Icons.Default.Article) {
+                        ExpandableCard("Suggested Terms", Icons.Default.Article) {
                             d.suggestedTerms.forEach { (k, v) ->
                                 InfoRow("${k.replace("_"," ").replaceFirstChar{it.uppercase()}}:", v.toString())
                                 Spacer(Modifier.height(4.dp))
@@ -113,7 +113,7 @@ fun Layer5Screen(onBack: () -> Unit, vm: MainViewModel = viewModel()) {
                     }
 
                     if (!d.mediationNotes.isNullOrEmpty()) {
-                        ExpandableCard("🧾 Mediation Notes", Icons.Default.Chat) { BulletList(d.mediationNotes) }
+                        ExpandableCard(" Mediation Notes", Icons.Default.Chat) { BulletList(d.mediationNotes) }
                     }
 
                     d.disclaimer?.let {

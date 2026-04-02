@@ -142,20 +142,20 @@ fun Layer2Screen(onBack: () -> Unit, vm: Layer2ViewModel = viewModel()) {
                                 // Court examination focus
                                 val courtFocus = d["court_examination_focus"]
                                 if (courtFocus is List<*>) {
-                                    SectionHeader("⚖️ Court Examination Focus", Icons.Default.Gavel)
+                                    SectionHeader("Court Examination Focus", Icons.Default.Gavel)
                                     BulletList(courtFocus.filterIsInstance<String>())
                                 }
                                 val complianceActions = d["compliance_engine_actions"]
                                 if (complianceActions is List<*>) {
                                     Spacer(Modifier.height(12.dp))
-                                    SectionHeader("⚙️ Compliance Actions", Icons.Default.Settings)
+                                    SectionHeader("Compliance Actions", Icons.Default.Settings)
                                     BulletList(complianceActions.filterIsInstance<String>(), EmeraldAccent)
                                 }
                             }
                             1 -> {
                                 val docs = d["required_core_documents"]
                                 if (docs is List<*>) {
-                                    SectionHeader("📌 Required Documents", Icons.Default.AttachFile)
+                                    SectionHeader("Required Documents", Icons.Default.AttachFile)
                                     docs.filterIsInstance<String>().forEach { doc ->
                                         Row(modifier = Modifier.padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                                             Icon(Icons.Default.CheckCircle, null, tint = EmeraldAccent, modifier = Modifier.size(16.dp))
@@ -168,7 +168,7 @@ fun Layer2Screen(onBack: () -> Unit, vm: Layer2ViewModel = viewModel()) {
                             2 -> {
                                 val risks = d["common_litigation_risks"]
                                 if (risks is List<*>) {
-                                    SectionHeader("⚠️ Common Litigation Risks", Icons.Default.Warning)
+                                    SectionHeader("Common Litigation Risks", Icons.Default.Warning)
                                     risks.filterIsInstance<String>().forEach { risk ->
                                         Row(modifier = Modifier.padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                                             Icon(Icons.Default.Cancel, null, tint = CrimsonAccent, modifier = Modifier.size(16.dp))

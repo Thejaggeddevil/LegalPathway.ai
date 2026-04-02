@@ -1,5 +1,7 @@
 package com.legalpathways.ai.ui.screens
 
+import androidx.compose.animation.*
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.*
@@ -8,6 +10,10 @@ import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.*
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.*
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -16,71 +22,278 @@ import com.legalpathways.ai.ui.components.*
 import com.legalpathways.ai.ui.theme.*
 import com.legalpathways.ai.viewmodel.MainViewModel
 import com.legalpathways.ai.viewmodel.UiState
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 @Composable
 fun Layer0Screen(onBack: () -> Unit, vm: MainViewModel = viewModel()) {
     val state      by vm.layer0State.collectAsState()
     var step       by remember { mutableStateOf(1) }
-    var relStatus  by remember { mutableStateOf("dating") }
-    var religion   by remember { mutableStateOf("Hindu") }
-    var marriageAct by remember { mutableStateOf("HMA") }
+    var relStatus  by remember { mutableStateOf("") }
+    var religion   by remember { mutableStateOf("") }
+    var marriageAct by remember { mutableStateOf("") }
     var children   by remember { mutableStateOf(false) }
-    var income     by remember { mutableStateOf("low") }
-    var risk       by remember { mutableStateOf("none") }
+    var childrenSelected by remember { mutableStateOf(false) }
+    var income     by remember { mutableStateOf("") }
+    var risk       by remember { mutableStateOf("") }
+    val coroutineScope = rememberCoroutineScope()
+    // MCQ Data
+    val mcqSteps = listOf(
+        MCQQuestion(
+            id = "relStatus",
+            question = "What is your current relationship status?",
+            options = listOf(
+                "dating" to "Dating",
+                "engaged" to "Engaged",
+                "married" to "Married",
+                "separated" to "Separated"
+            )
+        ),
+        MCQQuestion(
+            id = "religion",
+            question = "Which religion / marriage act applies?",
+            options = listOf(
+                "Hindu" to "Hindu (HMA)",
+                "Muslim" to "Muslim (MLA)",
+                "Christian" to "Christian (IDA)",
+                "Special Marriage" to "Special Marriage Act (SMA)",
+                "Parsi" to "Parsi (PMDA)"
+            )
+        ),
+        MCQQuestion(
+            id = "children",
+            question = "Do you have children together?",
+            options = listOf(
+                "yes" to "Yes",
+                "no" to "No"
+            )
+        ),
+        MCQQuestion(
+            id = "income",
+            question = "What is your income bracket?",
+            options = listOf(
+                "low" to "Low Income",
+                "medium" to "Medium Income",
+                "high" to "High Income"
+            )
+        ),
+        MCQQuestion(
+            id = "risk",
+            question = "Any risk indicators in your situation?",
+            options = listOf(
+                "none" to "No Risk",
+                "financial_dependency" to "Financial Dependency",
+                "abuse" to "Abuse or Harm",
+                "violence" to "Violence",
+                "abandonment" to "Abandonment"
+            )
+        )
+    )
 
-    LaunchedEffect(state) { if (state is UiState.Idle) step = 1 }
+    LaunchedEffect(state) {
+        if (state is UiState.Idle) step = 1
+    }
+
+    val backgroundGradient = Brush.verticalGradient(
+        colors = listOf(
+            NavyDeep.copy(alpha = 0.15f),
+            ParchmentLight
+        ),
+        startY = 0f,
+        endY = 1200f
+    )
 
     Scaffold(topBar = { LegalTopBar("Phase 0 – Legal Positioning", onBack) }) { padding ->
-        Column(
-            modifier = Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState()).padding(16.dp)
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(backgroundGradient)
+                .padding(padding)
         ) {
             when (val s = state) {
                 is UiState.Success -> {
-                    Layer0Result(data = s.data) { vm.resetLayer0(); step = 1 }
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .verticalScroll(rememberScrollState())
+                            .padding(16.dp)
+                    ) {
+                        Layer0Result(data = s.data) { vm.resetLayer0(); step = 1 }
+                    }
                 }
                 is UiState.Loading -> LoadingContent()
                 is UiState.Error   -> ErrorContent(s.message) { vm.resetLayer0() }
                 else -> {
-                    // Step progress
-                    StepProgress(current = step, total = 6)
-                    Spacer(Modifier.height(20.dp))
-
-                    when (step) {
-                        1 -> OptionStep("What is your current relationship status?",
-                            listOf("dating" to "💕 Dating", "engaged" to "💍 Engaged", "married" to "💒 Married", "separated" to "🚪 Separated"),
-                            relStatus) { relStatus = it }
-
-                        2 -> ReligionStep(religion) { rel, act -> religion = rel; marriageAct = act }
-
-                        3 -> BoolStep("Do you have children together?", children) { children = it }
-
-                        4 -> OptionStep("What is your income bracket?",
-                            listOf("low" to "💰 Low", "medium" to "💳 Medium", "high" to "🏦 High"),
-                            income) { income = it }
-
-                        5 -> OptionStep("Any risk indicators?",
-                            listOf(
-                                "none"                  to "✅ No Risk",
-                                "financial_dependency"  to "💸 Financial Dependency",
-                                "abuse"                 to "🚨 Abuse",
-                                "violence"              to "⚠️ Violence",
-                                "abandonment"           to "🚪 Abandonment"
-                            ), risk) { risk = it }
-
-                        6 -> ReviewStep(relStatus, religion, children, income, risk) {
-                            vm.submitLayer0(Layer0Request(relStatus, religion, marriageAct, children, income, risk))
+                    // MCQ Flow - FIXED LAYOUT
+                    Column(
+                        modifier = Modifier.fillMaxSize(),
+                        verticalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        // Main content - scrollable
+                        Column(
+                            modifier = Modifier
+                                .weight(1f)
+                                .fillMaxWidth()
+                                .verticalScroll(rememberScrollState())
+                                .padding(horizontal = 16.dp)
+                                .padding(top = 16.dp),
+                            verticalArrangement = Arrangement.Top
+                        ) {
+                            when (step) {
+                                1 -> MCQStepDisplayFixed(
+                                    mcqSteps[0],
+                                    relStatus,
+                                    onSelect = {
+                                        relStatus = it
+                                        coroutineScope.launch {
+                                            delay(400) // 👈 tweak 300–600ms
+                                            step++
+                                        }
+                                    }
+                                )
+                                2 -> MCQStepDisplayFixed(
+                                    mcqSteps[1],
+                                    religion,
+                                    onSelect = {
+                                        religion = it
+                                        marriageAct = mapReligionToAct(it)
+                                        coroutineScope.launch {
+                                            delay(400)
+                                            step++
+                                        }
+                                    }
+                                )
+                                3 -> {
+                                    val childMcq = MCQQuestion(
+                                        id = "children",
+                                        question = mcqSteps[2].question,
+                                        options = mcqSteps[2].options
+                                    )
+                                    MCQStepDisplayFixed(
+                                        childMcq,
+                                        if (childrenSelected) (if (children) "yes" else "no") else "",
+                                        onSelect = {
+                                            children = it == "yes"
+                                            childrenSelected = true
+                                            coroutineScope.launch {
+                                                delay(400)
+                                                step++
+                                            }
+                                        }
+                                    )
+                                }
+                                4 -> MCQStepDisplayFixed(
+                                    mcqSteps[3],
+                                    income,
+                                    onSelect = {
+                                        income = it
+                                        coroutineScope.launch {
+                                            delay(400)
+                                            step++
+                                        }
+                                    }
+                                )
+                                5 -> MCQStepDisplayFixed(
+                                    mcqSteps[4],
+                                    risk,
+                                    onSelect = {
+                                        risk = it
+                                        coroutineScope.launch {
+                                            delay(400)
+                                            step++
+                                        }
+                                    }
+                                )
+                                6 -> ReviewStepModern(relStatus, religion, children, income, risk)
+                            }
                         }
-                    }
 
-                    Spacer(Modifier.height(24.dp))
-                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        if (step > 1) {
-                            OutlinedButton(onClick = { step-- }, modifier = Modifier.weight(1f),
-                                colors = ButtonDefaults.outlinedButtonColors(contentColor = NavyMid),
-                                border = BorderStroke(1.dp, NavyMid)) { Text("← Back") }
-                        }
-                        if (step < 6) {
-                            GoldButton("Next →", onClick = { step++ }, modifier = Modifier.weight(1f))
+                        // Bottom action bar
+                        Surface(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(80.dp),
+                            color = MaterialTheme.colorScheme.surface,
+                            shadowElevation = 8.dp
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .padding(16.dp),
+                                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                // PREVIOUS button - ALWAYS visible in all modes
+                                IconButton(
+                                    onClick = { if (step > 1) step-- },
+                                    enabled = step > 1,
+                                    modifier = Modifier
+                                        .size(48.dp)
+                                        .background(
+                                            color = if (step > 1)
+                                                NavyMid
+                                            else
+                                                MaterialTheme.colorScheme.surfaceVariant,
+                                            shape = CircleShape
+                                        )
+                                ) {
+                                    Icon(
+                                        Icons.Default.ChevronLeft,
+                                        contentDescription = "Previous Step",
+                                        tint = if (step > 1)
+                                            Color.White
+                                        else
+                                            MaterialTheme.colorScheme.onSurfaceVariant,
+                                        modifier = Modifier.size(24.dp)
+                                    )
+                                }
+
+                                // PROGRESS dots
+                                Row(
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.weight(1f)
+                                ) {
+                                    repeat(6) { i ->
+                                        Box(
+                                            modifier = Modifier
+                                                .size(if (i == step - 1) 10.dp else 8.dp)
+                                                .background(
+                                                    color = if (i < step)
+                                                        NavyMid
+                                                    else
+                                                        MaterialTheme.colorScheme.surfaceVariant,
+                                                    shape = CircleShape
+                                                )
+                                        )
+                                    }
+                                }
+
+                                // NEXT button
+                                IconButton(
+                                    onClick = { if (step < 6) step++ },
+                                    enabled = step < 6,
+                                    modifier = Modifier
+                                        .size(48.dp)
+                                        .background(
+                                            color = if (step < 6)
+                                                NavyMid
+                                            else
+                                                MaterialTheme.colorScheme.surfaceVariant,
+                                            shape = CircleShape
+                                        )
+                                ) {
+                                    Icon(
+                                        Icons.Default.ChevronRight,
+                                        contentDescription = "Next Step",
+                                        tint = if (step < 6)
+                                            Color.White
+                                        else
+                                            MaterialTheme.colorScheme.onSurfaceVariant,
+                                        modifier = Modifier.size(24.dp)
+                                    )
+                                }
+                            }
                         }
                     }
                 }
@@ -89,126 +302,254 @@ fun Layer0Screen(onBack: () -> Unit, vm: MainViewModel = viewModel()) {
     }
 }
 
+// ==========================================
+// FIXED MCQ STEP DISPLAY
+// - Question FIXED at top
+// - Options don't push question
+// - Clear visual selection with COLOR FILL + BORDER
+// ==========================================
 @Composable
-fun StepProgress(current: Int, total: Int) {
-    Column {
-        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            repeat(total) { i ->
-                Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(4.dp)
-                        .background(if (i < current) GoldPrimary else MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(2.dp))
+fun MCQStepDisplayFixed(
+    mcq: MCQQuestion,
+    selectedValue: String,
+    onSelect: (String) -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .wrapContentHeight(),
+        verticalArrangement = Arrangement.spacedBy(24.dp)
+    ) {
+        // ─── FIXED QUESTION (TOP) ───
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .wrapContentHeight(),
+            shape = RoundedCornerShape(16.dp),
+            color = NavyMid.copy(alpha = 0.08f),
+            border = BorderStroke(1.5.dp, NavyMid.copy(alpha = 0.3f))
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(20.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    mcq.question,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onBackground,
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                    fontSize = 17.sp,
+                    lineHeight = 24.sp
                 )
             }
         }
-        Spacer(Modifier.height(4.dp))
-        Text("Step $current of $total", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-    }
-}
+        Spacer(modifier=Modifier.height(20.dp))
 
-@Composable
-fun OptionStep(question: String, options: List<Pair<String, String>>, selected: String, onSelect: (String) -> Unit) {
-    Text(question, style = MaterialTheme.typography.headlineSmall, color = MaterialTheme.colorScheme.onBackground)
-    Spacer(Modifier.height(16.dp))
-    options.forEach { (value, label) ->
-        val isSelected = selected == value
-        Card(
-            onClick   = { onSelect(value) },
-            modifier  = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-            shape     = RoundedCornerShape(10.dp),
-            colors    = CardDefaults.cardColors(
-                containerColor = if (isSelected) NavyMid.copy(alpha = 0.08f) else MaterialTheme.colorScheme.surface
-            ),
-            border = if (isSelected) BorderStroke(2.dp, NavyMid) else BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
+        // ─── OPTIONS (BELOW QUESTION) ───
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .wrapContentHeight(),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Row(modifier = Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
-                Text(label, style = MaterialTheme.typography.bodyMedium, fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                    modifier = Modifier.weight(1f))
-                if (isSelected) Icon(Icons.Default.CheckCircle, null, tint = GoldPrimary, modifier = Modifier.size(20.dp))
+            mcq.options.forEachIndexed { index, (value, label) ->
+                MCQOptionButtonFixed(
+                    label = label,
+                    letter = ('A' + index).toString(),
+                    isSelected = selectedValue == value,
+                    onClick = { onSelect(value) }
+                )
             }
         }
+
+        Spacer(modifier = Modifier.height(20.dp))
     }
 }
 
+// ==========================================
+// FIXED MCQ OPTION BUTTON
+// - BLUE FILL COLOR (NavyMid)
+// - VISIBLE BORDER when selected
+// - CHECKMARK icon
+// - 600ms animation
+// ==========================================
 @Composable
-fun ReligionStep(selected: String, onSelect: (String, String) -> Unit) {
-    val options = listOf(
-        Triple("Hindu",            "🛕 Hindu",            "HMA"),
-        Triple("Muslim",           "🕌 Muslim",           "MLA"),
-        Triple("Christian",        "⛪ Christian",         "IDA"),
-        Triple("Special Marriage", "⚖️ Special Marriage", "SMA"),
-        Triple("Parsi",            "🔥 Parsi",             "PMDA")
-    )
-    Text("Which religion / marriage act applies?", style = MaterialTheme.typography.headlineSmall, color = MaterialTheme.colorScheme.onBackground)
-    Spacer(Modifier.height(16.dp))
-    options.forEach { (value, label, act) ->
-        val isSelected = selected == value
-        Card(
-            onClick   = { onSelect(value, act) },
-            modifier  = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-            shape     = RoundedCornerShape(10.dp),
-            colors    = CardDefaults.cardColors(containerColor = if (isSelected) NavyMid.copy(alpha = 0.08f) else MaterialTheme.colorScheme.surface),
-            border    = if (isSelected) BorderStroke(2.dp, NavyMid) else BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
-        ) {
-            Row(modifier = Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
-                Text(label, style = MaterialTheme.typography.bodyMedium, fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal, modifier = Modifier.weight(1f))
-                if (isSelected) Icon(Icons.Default.CheckCircle, null, tint = GoldPrimary, modifier = Modifier.size(20.dp))
-            }
+fun MCQOptionButtonFixed(
+    label: String,
+    letter: String,
+    isSelected: Boolean,
+    onClick: () -> Unit
+) {
+    val fillAnimation = remember { Animatable(0f) }
+
+    LaunchedEffect(isSelected) {
+        if (isSelected) {
+            fillAnimation.animateTo(1f, animationSpec = tween(600, easing = EaseOutCubic))
+        } else {
+            fillAnimation.snapTo(0f)
         }
     }
-}
 
-@Composable
-fun BoolStep(question: String, value: Boolean, onSelect: (Boolean) -> Unit) {
-    Text(question, style = MaterialTheme.typography.headlineSmall, color = MaterialTheme.colorScheme.onBackground)
-    Spacer(Modifier.height(16.dp))
-    listOf(true to "✅ Yes", false to "❌ No").forEach { (v, label) ->
-        Card(
-            onClick   = { onSelect(v) },
-            modifier  = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-            shape     = RoundedCornerShape(10.dp),
-            colors    = CardDefaults.cardColors(containerColor = if (value == v) NavyMid.copy(alpha = 0.08f) else MaterialTheme.colorScheme.surface),
-            border    = if (value == v) BorderStroke(2.dp, NavyMid) else BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
-        ) {
-            Row(modifier = Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
-                Text(label, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
-                if (value == v) Icon(Icons.Default.CheckCircle, null, tint = GoldPrimary, modifier = Modifier.size(20.dp))
-            }
-        }
-    }
-}
-
-@Composable
-fun ReviewStep(rel: String, religion: String, children: Boolean, income: String, risk: String, onSubmit: () -> Unit) {
-    Text("Review & Submit", style = MaterialTheme.typography.headlineSmall, color = MaterialTheme.colorScheme.onBackground)
-    Spacer(Modifier.height(16.dp))
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors   = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(56.dp)
+            .clip(RoundedCornerShape(28.dp))
+            .clickable(enabled = !isSelected) { onClick() }
     ) {
-        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            InfoRow("Status:", rel.replaceFirstChar { it.uppercase() })
-            InfoRow("Religion:", religion)
-            InfoRow("Children:", if (children) "Yes" else "No")
-            InfoRow("Income:", income.replaceFirstChar { it.uppercase() })
-            InfoRow("Risk:", risk.replace("_", " ").replaceFirstChar { it.uppercase() })
+        // ─── ANIMATED FILL (BLUE COLOR) ───
+        if (fillAnimation.value > 0f) {
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth(fillAnimation.value)
+                    .fillMaxHeight()
+                    .align(Alignment.CenterStart),
+                color = NavyMid.copy(alpha = 0.75f),
+                shape = RoundedCornerShape(28.dp)
+            ) {}
+        }
+
+        // ─── WHITE BACKGROUND + BORDER + CONTENT ───
+        Surface(
+            modifier = Modifier.fillMaxSize(),
+            color = Color.White,
+            border = BorderStroke(
+                width = if (isSelected) 3.dp else 2.dp,
+                color = if (isSelected) NavyMid else NavyMid.copy(alpha = 0.25f)
+            ),
+            shape = RoundedCornerShape(28.dp)
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 18.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(14.dp)
+            ) {
+                // ─── LETTER CIRCLE ───
+                Surface(
+                    shape = CircleShape,
+                    color = if (isSelected) NavyMid else NavyMid.copy(alpha = 0.2f),
+                    modifier = Modifier.size(36.dp)
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Text(
+                            letter,
+                            style = MaterialTheme.typography.labelLarge,
+                            color = if (isSelected) Color.White else NavyDeep,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 14.sp
+                        )
+                    }
+                }
+
+                // ─── OPTION LABEL ───
+                Text(
+                    label,
+                    style = MaterialTheme.typography.bodyLarge,
+                    color =  NavyDeep,
+                    fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
+                    modifier = Modifier.weight(1f)
+                )
+
+                // ─── CHECKMARK (when selected) ───
+                if (isSelected) {
+                    Icon(
+                        Icons.Default.CheckCircle,
+                        contentDescription = "Selected",
+                        tint = NavyMid,
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
+            }
         }
     }
-    Spacer(Modifier.height(16.dp))
-    GoldButton("🚀 Get Legal Position", onClick = onSubmit)
 }
 
+/**
+ * Review step with modern design
+ */
+@Composable
+fun ReviewStepModern(rel: String, religion: String, children: Boolean, income: String, risk: String) {
+    Column(
+        verticalArrangement = Arrangement.spacedBy(16.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 40.dp)
+    ) {
+        Text(
+            "Review Your Answers",
+            style = MaterialTheme.typography.headlineSmall,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onBackground
+        )
+
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            elevation = CardDefaults.cardElevation(2.dp)
+        ) {
+            Column(
+                modifier = Modifier.padding(20.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                ReviewRow("Relationship Status:", rel.replaceFirstChar { it.uppercase() })
+                ReviewRow("Religion / Act:", religion)
+                ReviewRow("Children:", if (children) "Yes" else "No")
+                ReviewRow("Income Bracket:", income.replaceFirstChar { it.uppercase() })
+                ReviewRow("Risk Indicators:", risk.replace("_", " ").replaceFirstChar { it.uppercase() })
+            }
+        }
+
+        Text(
+            "⬇️ Click Submit to get your legal position analysis",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+            modifier = Modifier.fillMaxWidth()
+        )
+    }
+}
+
+@Composable
+fun ReviewRow(label: String, value: String) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Text(label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(value, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onBackground)
+    }
+}
+
+/**
+ * Map religion selection to marriage act code
+ */
+fun mapReligionToAct(religion: String): String = when (religion) {
+    "Hindu" -> "HMA"
+    "Muslim" -> "MLA"
+    "Christian" -> "IDA"
+    "Special Marriage" -> "SMA"
+    "Parsi" -> "PMDA"
+    else -> "HMA"
+}
+
+/**
+ * Existing result component (kept from original)
+ */
 @Composable
 fun Layer0Result(data: com.legalpathways.ai.model.Layer0Data, onReset: () -> Unit) {
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        Text("📍 Your Legal Position", style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.onBackground)
+        Text("📍 Your Legal Position", style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.onBackground, fontWeight = FontWeight.Bold)
 
         data.applicableLaw?.let {
             Card(modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = NavyMid.copy(alpha = 0.06f))) {
                 Column(modifier = Modifier.padding(14.dp)) {
                     SectionHeader("Applicable Law", Icons.Default.MenuBook)
-                    Text(it, style = MaterialTheme.typography.bodyMedium)
+                    Text(it, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface)
                 }
             }
         }
@@ -235,7 +576,7 @@ fun Layer0Result(data: com.legalpathways.ai.model.Layer0Data, onReset: () -> Uni
             Card(modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = GoldPrimary.copy(alpha = 0.06f))) {
                 Column(modifier = Modifier.padding(14.dp)) {
                     SectionHeader("Recommended Next Step", Icons.Default.ArrowForward)
-                    Text(it, style = MaterialTheme.typography.bodyMedium)
+                    Text(it, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface)
                 }
             }
         }
@@ -248,3 +589,12 @@ fun Layer0Result(data: com.legalpathways.ai.model.Layer0Data, onReset: () -> Uni
         }
     }
 }
+
+
+// Data class - Keep from original
+data class MCQQuestion(
+    val id: String,
+    val question: String,
+    val options: List<Pair<String, String>>,
+    val imageUrl: String? = null
+)

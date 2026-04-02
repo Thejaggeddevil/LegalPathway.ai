@@ -112,7 +112,7 @@ fun PostDivorceCard(index: Int, item: Layer10Item) {
                         BulletList(item.documentsRequired)
                     }
 
-                    SectionHeader("📋 How to Do It", Icons.Default.HowToReg)
+                    SectionHeader("How to Do It", Icons.Default.HowToReg)
                     Text(item.howToDoIt, style = MaterialTheme.typography.bodySmall)
 
                     // Risk warning

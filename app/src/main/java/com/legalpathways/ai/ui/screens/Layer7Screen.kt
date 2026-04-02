@@ -87,7 +87,7 @@ fun Layer7Screen(onBack: () -> Unit, vm: MainViewModel = viewModel()) {
                             colors   = CardDefaults.cardColors(containerColor = NavyMid.copy(alpha = 0.05f))
                         ) {
                             Column(modifier = Modifier.padding(16.dp)) {
-                                SectionHeader("🧠 Engine Strategy Flags", Icons.Default.Memory)
+                                SectionHeader("Engine Strategy Flags", Icons.Default.Memory)
                                 Spacer(Modifier.height(8.dp))
                                 data.engineFlags.forEach { (key, value) ->
                                     Row(
