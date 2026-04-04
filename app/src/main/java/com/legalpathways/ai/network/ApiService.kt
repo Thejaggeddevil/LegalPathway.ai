@@ -30,11 +30,12 @@ interface ApiService {
 
     // ── Layer 2 ──────────────────────────────────────────────────────────────
     @GET("api/layer2/checklist")
-    suspend fun getLayer2Checklist(): Response<ApiResponse<List<Map<String, String>>>>
+    suspend fun getLayer2Checklist(): Response<ApiResponse<List<Map<String, Any>>>>
 
     @GET("api/layer2/checklist")
-    suspend fun getLayer2ChecklistDetail(@Query("act") act: String): Response<ApiResponse<Map<String, Any>>>
-
+    suspend fun getLayer2ChecklistDetail(
+        @Query("act") act: String
+    ): Response<ApiResponse<Map<String, Any>>>
     // ── Layer 3 ──────────────────────────────────────────────────────────────
     @GET("api/layer3/events")
     suspend fun getLayer3Events(): Response<ApiResponse<List<ScenarioItem>>>

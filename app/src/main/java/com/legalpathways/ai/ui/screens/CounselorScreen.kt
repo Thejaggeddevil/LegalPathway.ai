@@ -46,7 +46,12 @@ fun CounselorScreen(onBack: () -> Unit, vm: MainViewModel = viewModel()) {
                 ChatInputBar(
                     value         = input,
                     onValueChange = { input = it },
-                    onSend        = { vm.sendCounselorChat(input); input = "" },
+                    onSend = {
+                        if (input.isNotBlank()) {
+                            vm.sendCounselorChat(input)
+                            input = ""
+                        }
+                    },
                     placeholder   = "Ask about stress, healing, separation…",
                     enabled       = !loading
                 )

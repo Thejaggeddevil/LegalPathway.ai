@@ -19,9 +19,13 @@ object RetrofitClient {
 
     private val okHttpClient = OkHttpClient.Builder()
         .addInterceptor(loggingInterceptor)
-        .connectTimeout(30, TimeUnit.SECONDS)
-        .readTimeout(60, TimeUnit.SECONDS)
-        .writeTimeout(30, TimeUnit.SECONDS)
+        // Increased timeouts for slow backends or network latency
+        .connectTimeout(60, TimeUnit.SECONDS)
+        .readTimeout(180, TimeUnit.SECONDS)     // 3 minutes for counselor
+        .writeTimeout(60, TimeUnit.SECONDS)
+        .callTimeout(240, TimeUnit.SECONDS)      // 4 minutes overall   // Added: overall call timeout
+        // Disable connection pooling reuse which can cause timeout issues
+        .connectionPool(okhttp3.ConnectionPool(0, 1, TimeUnit.NANOSECONDS))
         .build()
 
     val apiService: ApiService by lazy {

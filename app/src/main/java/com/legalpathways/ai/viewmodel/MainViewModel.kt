@@ -8,6 +8,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
+import kotlin.time.Duration.Companion.seconds
 
 sealed class UiState<out T> {
     object Idle    : UiState<Nothing>()
@@ -28,11 +30,11 @@ class MainViewModel : ViewModel() {
     val chatLoading: StateFlow<Boolean> = _chatLoading.asStateFlow()
 
     private val _chatHistory = MutableStateFlow<List<ChatMessage>>(emptyList())
-
+    private val _acts = MutableStateFlow<UiState<List<String>>>(UiState.Idle)
     // ── Counselor Chat ────────────────────────────────────────────────────────
     private val _counselorMessages = MutableStateFlow<List<ChatMessage>>(emptyList())
     val counselorMessages: StateFlow<List<ChatMessage>> = _counselorMessages.asStateFlow()
-
+    private val _detail = MutableStateFlow<UiState<Map<String, Any>>>(UiState.Idle)
     private val _counselorLoading = MutableStateFlow(false)
     val counselorLoading: StateFlow<Boolean> = _counselorLoading.asStateFlow()
 
@@ -72,7 +74,7 @@ class MainViewModel : ViewModel() {
     var selectedRole         = MutableStateFlow("husband")
 
     // ─────────────────────────────────────────────────────────────────────────
-    // Chat (Legal AI) — FIXED: handles multiple response shapes from backend
+    // Chat (Legal AI) — FIXED: handles multiple response shapes + timeouts
     // ─────────────────────────────────────────────────────────────────────────
     fun sendLegalChat(question: String, religion: String) {
         val userMsg = ChatMessage(question, isUser = true)
@@ -82,7 +84,16 @@ class MainViewModel : ViewModel() {
         viewModelScope.launch {
             try {
                 val contextual = buildContext(question, _chatHistory.value)
-                val resp = api.ask(AskRequest(contextual, mapReligion(religion)))
+
+                // Timeout: 100 seconds for the entire operation
+                val resp = withTimeoutOrNull(150.seconds) {
+                    api.ask(AskRequest(contextual, mapReligion(religion)))
+                }
+
+                if (resp == null) {
+                    // Timeout occurred
+                    throw TimeoutException("Request took too long. Backend may be processing slowly.")
+                }
 
                 val text: String = when {
                     // Shape 1: { success: true, data: { answer: "...", explanation: "..." } }
@@ -96,9 +107,9 @@ class MainViewModel : ViewModel() {
                     }
                     // Shape 3: HTTP error
                     !resp.isSuccessful -> {
-                        "❌ Server returned error ${resp.code()}. Check backend logs."
+                        "❌ Server Error ${resp.code()}\n\nBackend returned an error. Check:\n• Backend logs\n• Request format\n• API endpoint working?"
                     }
-                    else -> "❌ Could not get a response. Please try again."
+                    else -> "❌ No valid response. Please try again."
                 }
 
                 val suggestions = generateSuggestions(text, religion, question)
@@ -106,14 +117,25 @@ class MainViewModel : ViewModel() {
                 _chatMessages.value = _chatMessages.value + botMsg
                 _chatHistory.value  = (_chatHistory.value + userMsg + botMsg).takeLast(6)
 
+            } catch (e: TimeoutException) {
+                val errMsg = "⏱️ Request Timeout (120s)\n\nBackend is taking too long to respond. This usually means:\n" +
+                        "• Backend is processing a complex query\n• Network is slow\n• Backend may be overloaded\n\n" +
+                        "Try:\n• Simplify your question\n• Check backend logs\n• Restart backend"
+                _chatMessages.value = _chatMessages.value + ChatMessage(errMsg, false)
             } catch (e: Exception) {
                 val errMsg = when {
                     e.message?.contains("Unable to resolve host") == true ->
-                        "❌ Cannot reach backend.\n\nCheck:\n• Backend running on port 8000?\n• Phone & PC on same Wi-Fi?\n• BASE_URL set to your PC IP (192.168.x.x)?"
+                        "❌ Cannot Reach Backend\n\nCheck:\n" +
+                                "• Is backend running on port 8000?\n" +
+                                "• Phone & PC on same Wi-Fi?\n" +
+                                "• BASE_URL correct? (should be 192.168.x.x or 10.0.2.2)"
                     e.message?.contains("timeout") == true ->
-                        "❌ Request timed out. Backend may be slow."
+                        "⏱️ Request Timeout\n\nBackend took too long. Check:\n" +
+                                "• Backend logs\n• Network connection\n• Try a simpler question"
+                    e.message?.contains("Failed to connect") == true ->
+                        "❌ Connection Failed\n\nCheck:\n• Backend URL in BuildConfig\n• Network connectivity\n• Firewall settings"
                     else ->
-                        "❌ Error: ${e.message}"
+                        "❌ Error: ${e.message?.take(100) ?: "Unknown error"}"
                 }
                 _chatMessages.value = _chatMessages.value + ChatMessage(errMsg, false)
             } finally {
@@ -136,63 +158,98 @@ class MainViewModel : ViewModel() {
     }
 
     // ─────────────────────────────────────────────────────────────────────────
-    // Counselor Chat — FIXED: handles multiple response shapes
-    // ─────────────────────────────────────────────────────────────────────────
+// Counselor Chat
+// ─────────────────────────────────────────────────────────────────────────
     fun sendCounselorChat(question: String) {
         val userMsg = ChatMessage(question, isUser = true)
         _counselorMessages.value = _counselorMessages.value + userMsg
-        _counselorLoading.value  = true
+        _counselorLoading.value = true
 
         viewModelScope.launch {
             try {
-                val resp = api.counselorChat(CounselorRequest(question))
+                // Timeout: 100 seconds for the entire operation
+                val resp = withTimeoutOrNull(100.seconds) {
+                    api.counselorChat(CounselorRequest(question))
+                }
+
+                if (resp == null) {
+                    // Timeout occurred
+                    throw TimeoutException("Request took too long. Backend may be processing slowly.")
+                }
 
                 val text: String = when {
+                    // Shape 1: { success: true, data: { ... } }
                     resp.isSuccessful && resp.body()?.success == true && resp.body()?.data != null -> {
                         val d = resp.body()!!.data!!
-                        buildCounselorText(d)
+                        buildCounselorResponse(d)
                     }
+                    // Shape 2: success=false with a message string
                     resp.isSuccessful && resp.body()?.message != null -> {
                         resp.body()!!.message!!
                     }
-                    else -> "❌ Could not get a response. Please try again."
+                    // Shape 3: HTTP error
+                    !resp.isSuccessful -> {
+                        "❌ Server Error ${resp.code()}\n\nBackend returned an error. Check:\n• Backend logs\n• Request format\n• API endpoint working?"
+                    }
+                    else -> "❌ No valid response. Please try again."
                 }
 
-                _counselorMessages.value = _counselorMessages.value + ChatMessage(text, false)
+                val botMsg = ChatMessage(text, isUser = false, suggestions = emptyList())
+                _counselorMessages.value = _counselorMessages.value + botMsg
 
+            } catch (e: TimeoutException) {
+                val errMsg = "⏱️ Request Timeout (100s)\n\nBackend is taking too long to respond. Try:\n• Simplify your question\n• Check backend logs\n• Restart backend"
+                _counselorMessages.value = _counselorMessages.value + ChatMessage(errMsg, false)
             } catch (e: Exception) {
-                _counselorMessages.value = _counselorMessages.value + ChatMessage(
-                    "❌ Error: ${e.message}", false
-                )
+                val errMsg = when {
+                    e.message?.contains("Unable to resolve host") == true ->
+                        "❌ Cannot Reach Backend\n\nCheck:\n• Is backend running on port 8000?\n• Phone & PC on same Wi-Fi?\n• BASE_URL correct?"
+                    e.message?.contains("timeout") == true ->
+                        "⏱️ Request Timeout\n\nBackend took too long. Check:\n• Backend logs\n• Network connection"
+                    else ->
+                        "❌ Error: ${e.message?.take(100) ?: "Unknown error"}"
+                }
+                _counselorMessages.value = _counselorMessages.value + ChatMessage(errMsg, false)
             } finally {
                 _counselorLoading.value = false
             }
         }
     }
 
-    private fun buildCounselorText(d: CounselorData): String = buildString {
-        if (d.introduction.isNotBlank()) {
-            append(d.introduction.trim())
-            append("\n\n")
+    // Helper to format counselor response
+    private fun buildCounselorResponse(data: CounselorData): String {
+        val parts = mutableListOf<String>()
+
+        data.introduction.takeIf { it.isNotBlank() }?.let { parts.add(it) }
+        data.understanding.takeIf { it.isNotBlank() }?.let { parts.add(it) }
+
+        if (data.keyPoints.isNotEmpty()) {
+            parts.add("Key Points:\n• " + data.keyPoints.joinToString("\n• "))
         }
-        if (d.understanding.isNotBlank()) {
-            append(d.understanding.trim())
-            append("\n\n")
+
+        data.summary.takeIf { it.isNotBlank() }?.let { parts.add(it) }
+        data.conclusion.takeIf { it.isNotBlank() }?.let { parts.add(it) }
+        data.motivation.takeIf { it.isNotBlank() }?.let { parts.add(it) }
+        data.explanation.takeIf { it.isNotBlank() }?.let { parts.add(it) }
+
+        return parts.joinToString("\n\n").ifEmpty { "No response from counselor. Please try again." }
+    }
+
+    fun clearCounselorChat() {
+        _counselorMessages.value = emptyList()
+    }
+
+
+    private fun buildCounselorText(data: CounselorData): String {
+        val parts = mutableListOf<String>()
+        data.introduction.takeIf { it.isNotEmpty() }?.let { parts.add(it) }
+        data.understanding.takeIf { it.isNotEmpty() }?.let { parts.add(it) }
+        if (data.keyPoints.isNotEmpty()) {
+            parts.add("Key Points:\n• " + data.keyPoints.joinToString("\n• "))
         }
-        if (d.keyPoints.isNotEmpty()) {
-            append("Key Points:\n")
-            d.keyPoints.forEach { append("• $it\n") }
-            append("\n")
-        }
-        if (d.conclusion.isNotBlank()) {
-            append(d.conclusion.trim())
-            append("\n\n")
-        }
-        if (d.motivation.isNotBlank()) {
-            append("💪 ")
-            append(d.motivation.trim())
-        }
-    }.trim()
+        data.conclusion.takeIf { it.isNotEmpty() }?.let { parts.add(it) }
+        return parts.joinToString("\n\n").ifEmpty { "Unable to provide counseling at this time." }
+    }
 
     // ─────────────────────────────────────────────────────────────────────────
     // Roadmap
@@ -203,12 +260,12 @@ class MainViewModel : ViewModel() {
             try {
                 val resp = api.getRoadmap(marriage, role)
                 if (resp.isSuccessful && resp.body()?.success == true) {
-                    _roadmapState.value = UiState.Success(resp.body()!!.data!!)
+                    _roadmapState.value = UiState.Success(resp.body()!!.data ?: RoadmapData(emptyList()))
                 } else {
-                    _roadmapState.value = UiState.Error("No roadmap available for this selection.")
+                    _roadmapState.value = UiState.Error("Failed to load roadmap")
                 }
             } catch (e: Exception) {
-                _roadmapState.value = UiState.Error("Failed to load roadmap: ${e.message}")
+                _roadmapState.value = UiState.Error(e.message ?: "Unknown error")
             }
         }
     }
@@ -216,6 +273,21 @@ class MainViewModel : ViewModel() {
     // ─────────────────────────────────────────────────────────────────────────
     // Layer 0
     // ─────────────────────────────────────────────────────────────────────────
+    fun getLayer0Position(request: Layer0Request) {
+        _layer0State.value = UiState.Loading
+        viewModelScope.launch {
+            try {
+                val resp = api.getLayer0Position(request)
+                if (resp.isSuccessful && resp.body()?.success == true) {
+                    _layer0State.value = UiState.Success(resp.body()!!.data!!)
+                } else {
+                    _layer0State.value = UiState.Error("Failed to load position")
+                }
+            } catch (e: Exception) {
+                _layer0State.value = UiState.Error(e.message ?: "Unknown error")
+            }
+        }
+    }
     fun submitLayer0(request: Layer0Request) {
         _layer0State.value = UiState.Loading
         viewModelScope.launch {
@@ -231,9 +303,7 @@ class MainViewModel : ViewModel() {
             }
         }
     }
-
     fun resetLayer0() { _layer0State.value = UiState.Idle }
-
     // ─────────────────────────────────────────────────────────────────────────
     // Phase 1
     // ─────────────────────────────────────────────────────────────────────────
@@ -419,3 +489,6 @@ class MainViewModel : ViewModel() {
         return matched.distinct().take(3)
     }
 }
+
+// Custom exception for better error handling
+class TimeoutException(message: String) : Exception(message)
